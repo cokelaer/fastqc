@@ -16,7 +16,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python: [3.8, '3.10']
+        python: [3.9, '3.10']
       fail-fast: false
 
 
@@ -53,6 +53,6 @@ jobs:
 
     - name: testing
       run: |
-        sequana_fastqc --input-directory test/data/ --use-apptainer && cd fastqc && sh fastqc.sh
+        sequana_fastqc --input-directory test/data/ --apptainer-prefix ~/images && cd fastqc && sh fastqc.sh
 
 

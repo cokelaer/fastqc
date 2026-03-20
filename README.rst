@@ -2,105 +2,92 @@
 .. image:: https://badge.fury.io/py/sequana-fastqc.svg
      :target: https://pypi.python.org/pypi/sequana_fastqc
 
+.. image:: https://github.com/sequana/fastqc/actions/workflows/main.yml/badge.svg
+   :target: https://github.com/sequana/fastqc/actions/workflows/main.yml
+
+.. image:: https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11-blue.svg
+    :target: https://pypi.python.org/pypi/sequana
+    :alt: Python 3.9 | 3.10 | 3.11
+
 .. image:: http://joss.theoj.org/papers/10.21105/joss.00352/status.svg
     :target: http://joss.theoj.org/papers/10.21105/joss.00352
     :alt: JOSS (journal of open source software) DOI
 
-.. image:: https://github.com/sequana/fastqc/actions/workflows/main.yml/badge.svg
-   :target: https://github.com/sequana/fastqc/actions/workflows/main.yml
+This is the **fastqc** pipeline from the `Sequana <https://sequana.readthedocs.org>`_ projet
 
-
-.. image:: https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C3.10-blue.svg
-    :target: https://pypi.python.org/pypi/sequana
-    :alt: Python 3.8 | 3.9 | 3.10
-
-This is is the **fastqc** pipeline from the `Sequana <https://sequana.readthedocs.org>`_ projet
-
-:Overview: Runs fastqc and multiqc on a set of Sequencing data to produce control quality reports
-:Input: A set of FastQ files (paired or single-end) compressed or not
-:Output: An HTML file summary.html (individual fastqc reports, mutli-samples report)
+:Overview: Runs fastqc (or falco) and multiqc on a set of sequencing data to produce quality control reports
+:Input: A set of FastQ files (paired or single-end), compressed or not
+:Output: An HTML summary report with individual FastQC reports and a multi-sample MultiQC report
 :Status: Production
-:Wiki: https://github.com/sequana/fastqc/wiki
-:Documentation: This README file, the Wiki from the github repository (link above) and https://sequana.readthedocs.io
+:Documentation: This README file and https://sequana.readthedocs.io
 :Citation: Cokelaer et al, (2017), 'Sequana': a Set of Snakemake NGS pipelines, Journal of Open Source Software, 2(16), 352, JOSS DOI https://doi:10.21105/joss.00352
 
 
 Installation
 ~~~~~~~~~~~~
 
-sequana_fastqc is based on Python3, just install the package as follows::
+If you already have all requirements, you can install the package using pip::
 
     pip install sequana_fastqc --upgrade
 
-You will need third-party software such as fastqc. Please see below for details.
+You will need third-party software such as fastqc or falco. Please see below for details.
 
 Usage
 ~~~~~
 
-If you have a set of FastQ files in a data/ directory, type::
+Scan FastQ files in a directory and set up the pipeline (replace ``DATAPATH`` with your input directory)::
 
-    sequana_fastqc --input-directory data
+    sequana_fastqc --input-directory DATAPATH
 
-To know more about the options (e.g., add a different pattern to restrict the
-execution to a subset of the input files, change the output/working directory,
-etc)::
+To use falco instead of fastqc::
 
-    sequana_fastqc --help
+    sequana_fastqc --input-directory DATAPATH --method falco
 
-The call to sequana_fastqc creates a directory **fastqc**. Then, you go to the 
-working directory and execute the pipeline as follows::
+To skip the MultiQC report (useful when memory is limited)::
+
+    sequana_fastqc --input-directory DATAPATH --skip-multiqc
+
+This creates a ``fastqc/`` directory with the pipeline and configuration file. Execute the pipeline locally::
 
     cd fastqc
-    sh fastqc.sh  # for a local run
+    sh fastqc.sh
 
-This launch a snakemake pipeline. If you are familiar with snakemake, you can retrieve the fastqc.rules and config.yaml files and then execute the pipeline yourself with specific parameters::
+If you are familiar with Snakemake, you can also run the pipeline directly::
 
     snakemake -s fastqc.rules --cores 4 --stats stats.txt
 
-Or use `sequanix <https://sequana.readthedocs.io/en/master/sequanix.html>`_ interface.
+See ``.sequana/profile/config.yaml`` to tune Snakemake behaviour (cores, cluster settings, etc.).
 
-Please see the `Wiki <https://github.com/sequana/fastqc/wiki>`_ for more examples and features.
+Usage with apptainer
+~~~~~~~~~~~~~~~~~~~~~
 
-Tutorial
-~~~~~~~~
+With apptainer, initiate the working directory as follows::
 
-You can retrieve test data from sequana_fastqc (https://github.com/sequana/fastqc) or type::
+    sequana_fastqc --input-directory DATAPATH --use-apptainer
 
-    wget https://raw.githubusercontent.com/sequana/fastqc/master/sequana_pipelines/fastqc/data/data_R1_001.fastq.gz
-    wget https://raw.githubusercontent.com/sequana/fastqc/master/sequana_pipelines/fastqc/data/data_R2_001.fastq.gz
+Images are downloaded in the working directory but you can store them in a shared location::
 
-then, prepare the pipeline::
+    sequana_fastqc --input-directory DATAPATH --use-apptainer --apptainer-prefix ~/.sequana/apptainers
 
-    sequana_fastqc --input-directory .
+and then::
+
     cd fastqc
-    sh fastq.sh
+    sh fastqc.sh
 
-    # once done, remove temporary files (snakemake and others)
-    make clean
-
-Just open the HTML entry called summary.html. A multiqc report is also available. 
-You will get expected images such as the following one:
-
-.. image:: https://github.com/sequana/fastqc/blob/main/doc/summary.png?raw=true
-
-Please see the `Wiki <https://github.com/sequana/fastqc/wiki>`_ for more examples and features.
 
 Requirements
 ~~~~~~~~~~~~
 
-This pipelines requires the following executable(s):
+This pipeline requires the following executables (install via bioconda/conda):
 
-- fastqc
-- falco (optional)
+- **fastqc** — quality control tool for sequencing data (default)
+- **falco** — faster drop-in replacement for fastqc (optional, ``--method falco``)
+- **multiqc** — aggregated HTML report across samples
 
 
-For Linux users, we provide apptainer/singularity images available through the **damona** project (https://damona.readthedocs.io). 
+Install all dependencies at once::
 
-To make use of them, initiliase the pipeline with the --use-apptainer option and everything should be downloaded
-automatically for you, which also guarantees reproducibility::
-
-    sequana_fastqc --input-directory data --use-apptainer --apptainer-prefix ~/images
-
+    mamba env create -f environment.yml
 
 .. image:: https://raw.githubusercontent.com/sequana/fastqc/main/sequana_pipelines/fastqc/dag.png
 
@@ -108,34 +95,58 @@ automatically for you, which also guarantees reproducibility::
 Details
 ~~~~~~~~~
 
-This pipeline runs fastqc in parallel on the input fastq files (paired or not)
-and then execute multiqc. A brief sequana summary report is also produced.
-s
-You may use falco instead of fastqc. This is experimental but seem to work for
-Illumina/FastQ files.
+This pipeline runs fastqc (or falco) in parallel on the input FastQ files, then aggregates results
+with MultiQC. A sequana summary report is also produced with per-sample statistics and quality plots.
 
-This pipeline has been tested on several hundreds of MiSeq, NextSeq, MiniSeq,
-ISeq100, Pacbio runs.
+**QC method** (``--method``):
 
-It produces a md5sum of your data. It copes with empty samples. Produces
-ready-to-use HTML reports, etc
+- ``fastqc`` (default) — standard FastQC; handles FastQ, BAM, and SAM inputs
+- ``falco`` — faster alternative; FastQ inputs only
+
+**Optional outputs**:
+
+- MultiQC report (``multiqc/multiqc_report.html``) — enabled by default, disable with ``--skip-multiqc``
+- MD5 checksums of all input files (``md5.txt``)
+- Tree browser of individual FastQC HTML reports (``tree.html``)
+
+This pipeline has been tested on several hundreds of MiSeq, NextSeq, MiniSeq, ISeq100, and PacBio runs.
 
 
 Rules and configuration details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Here is the `latest documented configuration file <https://raw.githubusercontent.com/sequana/fastqc/main/sequana_pipelines/fastqc/config.yaml>`_
-to be used with the pipeline. Each rule used in the pipeline may have a section in the configuration file. 
+to be used with the pipeline. Each rule used in the pipeline may have a section in the configuration file.
 
 Changelog
 ~~~~~~~~~
 ========= ====================================================================
 Version   Description
 ========= ====================================================================
+1.10.0    * Fix --skip-multiqc flag (was is_flag=False, now is_flag=True)
+          * Add multiqc_config rule so read_count_multiplier is written
+            before multiqc runs (ordering fix)
+          * Restore config_file support in multiqc shell command
+          * Fix summary image link when multiqc is disabled
+          * Fix plotting_and_stats to use its own resources section
+          * Fix plotting_and_stats input (log files → declared outputs)
+          * Replace assert with raise ValueError in plotting_and_stats
+          * Use context manager for open() in onsuccess
+          * Extend localrules to dot2svg, md5sum, plotting_and_stats,
+            multiqc_config
+          * Fix typo: detailled → detailed in HTML report
+          * Fix column label: duplicated (%) → unique (%)
+          * Remove stale sequana_wrappers version field from config.yaml
+          * Fix falco config comment (was copy-pasted from fastqc section)
+          * Remove redundant exclude_pattern assignment in main.py
+            (SequanaManager handles it automatically)
+1.9.0     * Replace wrappers with shell commands via manager.get_shell()
+            for falco, fastqc, multiqc, and dot2svg rules
+          * rulegraph rule uses manager.get_run() instead of wrapper
 1.8.2     * Fix the onerror typo in the pipeline, fix CI.
 1.8.1     * update __init__ (version)
 1.8.0     * uses pyproject instead of setuptools
-          * uses click instead of argparse and newest sequana_pipetools 
+          * uses click instead of argparse and newest sequana_pipetools
             (0.16.0)
 1.7.1     * Set wrapper version in the config based on new sequana_pipetools
             feature
@@ -147,7 +158,7 @@ Version   Description
 1.5.0     * removed modules completely.
 1.4.2     * simplified pipeline (suppress setup and use existing wrapper)
 1.4.1     * simplified pipeline with wrappers/rules
-1.4.0     * This version uses sequana 0.12.0 and new sequana-wrappers 
+1.4.0     * This version uses sequana 0.12.0 and new sequana-wrappers
             mechanism. Functionalities is unchanged. Also based on
             sequana_pipetools 0.6.X
 1.3.0     * add option --skip-multiqc (in case of memory trouble)
@@ -163,13 +174,13 @@ Version   Description
             accepted by fastqc i.e. SAM and BAM files
           * More doc, test and info on the wiki
 1.0.1     * add md5sum of input files as md5.txt file
-1.0.0     * a stable version. Added a wiki on github as well and a 
+1.0.0     * a stable version. Added a wiki on github as well and a
             singularity recipes
 0.9.15    * For the HTML reports, takes into account samples with zero reads
-0.9.14    * round up some statistics in the main table 
+0.9.14    * round up some statistics in the main table
 0.9.13    * improve the summary HTML report
 0.9.12    * implemented new --from-project option
-0.9.11    * now depends on sequana_pipetools instead of sequana.pipelines to 
+0.9.11    * now depends on sequana_pipetools instead of sequana.pipelines to
             speed up --help calls
           * new summary.html report created with pipeline summary
           * new rule (plotting)
@@ -177,7 +188,7 @@ Version   Description
 0.9.9     * add missing png and pipeline (regression bug)
 0.9.8     * add missing multi_config file
 0.9.7     * check existence of input directory in main.py
-          * add a logo 
+          * add a logo
           * fix schema
           * add multiqc_config
           * add sequana + sequana_fastqc version
@@ -188,7 +199,6 @@ Version   Description
 Contribute & Code of Conduct
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To contribute to this project, please take a look at the 
-`Contributing Guidelines <https://github.com/sequana/sequana/blob/master/CONTRIBUTING.rst>`_ first. Please note that this project is released with a 
-`Code of Conduct <https://github.com/sequana/sequana/blob/master/CONDUCT.md>`_. By contributing to this project, you agree to abide by its terms.
-
+To contribute to this project, please take a look at the
+`Contributing Guidelines <https://github.com/sequana/sequana/blob/main/CONTRIBUTING.rst>`_ first. Please note that this project is released with a
+`Code of Conduct <https://github.com/sequana/sequana/blob/main/CONDUCT.md>`_. By contributing to this project, you agree to abide by its terms.

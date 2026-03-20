@@ -7,8 +7,6 @@
 # use it, otherwise use input_samples.
 # ============================================================================
 
-sequana_wrappers: "v23.11.18"
-
 input_directory: '.'
 input_pattern: '*fastq.gz'
 exclude_pattern:
@@ -54,7 +52,7 @@ fastqc:
 #
 # :Parameters:
 #
-# - options: string with any valid FastQC options
+# - options: string with any valid Falco options
 falco:
     options: ''
     threads: 4
