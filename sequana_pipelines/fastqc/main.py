@@ -49,7 +49,7 @@ help = init_click(NAME, groups={
 )
 @click.option(
     "--skip-multiqc",
-    is_flag=False,
+    is_flag=True,
     help="""It may happen that multiqc requires lots of memory.
         For local run, you may want to switch if off with this flag""",
 )
@@ -66,9 +66,9 @@ def main(**options):
     # Fill the config file with data and specific options
     cfg = manager.config.config
     cfg.input_pattern = options.input_pattern
-    cfg.exclude_pattern = options.exclude_pattern
+
     cfg.input_directory = os.path.abspath(options.input_directory)
-    cfg.multiqc.do = not options.skip_multiqc
+    cfg.multiqc.do = not options.skip_multiqc  # noqa: SIM208
     cfg.general.method_choice = options.method
 
     manager.exists(cfg.input_directory)

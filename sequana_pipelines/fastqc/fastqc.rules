@@ -69,7 +69,7 @@ if 'general' in config and 'method_choice' in config['general'] and \
 
     rule falco:
         input:
-            manager.getrawdata()
+            fastq=manager.getrawdata()
         output:
             "samples/{sample}/summary.txt"
         log:
@@ -83,8 +83,8 @@ if 'general' in config and 'method_choice' in config['general'] and \
             config['apptainers']['falco']
         resources:
             **config['falco']['resources']
-        wrapper:
-            f"{manager.wrappers}/wrappers/falco"
+        shell:
+            manager.get_shell("falco/run", "v1")
     __multiqc__input = expand("samples/{sample}/summary.txt", sample=manager.samples)
 
 else:
@@ -94,7 +94,7 @@ else:
         input:
             manager.getrawdata()
         output:
-            "samples/{sample}/fastqc.done"
+            done="samples/{sample}/fastqc.done"
         log:
             "samples/{sample}/fastqc.log"
         threads:
@@ -106,8 +106,8 @@ else:
             **config['fastqc']['resources']
         container:
             config['apptainers']['fastqc']
-        wrapper:
-            f"{manager.wrappers}/wrappers/fastqc"
+        shell:
+            manager.get_shell("fastqc/run", "v1")
     __multiqc__input = expand("samples/{sample}/fastqc.done", sample=manager.samples)
 
 
@@ -156,10 +156,37 @@ if config['multiqc']['do']:
     # do not specify fastqc itself alone, otherwise it fails (feb 2020)
     config['multiqc']['options'] = config["multiqc"]["options"] + f" --comment '{comments}'"
 
+    rule multiqc_config:
+        input:
+            __multiqc__input
+        output:
+            "multiqc_config.yaml"
+        run:
+            import glob
+            from sequana.fastqc import FastQC
+            f = FastQC()
+            max_sequences = 0
+            for sample in manager.samples:
+                if METHOD == "fastqc":
+                    filenames = glob.glob("samples/{}/*zip".format(sample))
+                else:
+                    filenames = glob.glob("samples/{}/fastqc_*txt".format(sample))
+                filenames = sorted(filenames)
+                if filenames:
+                    f.read_sample(filenames[0], sample)
+                    max_sequences = max(max_sequences,
+                        f.fastqc_data[sample]['basic_statistics']['Total Sequences'])
+            with open(str(output[0]), "w") as fout:
+                if 0 < max_sequences < 1000000:
+                    fout.write("read_count_multiplier: 1\n")
+                    fout.write('read_count_prefix: ""\n')
+
+    localrules: multiqc_config
 
     rule multiqc:
         input:
-            __multiqc__input
+            __multiqc__input,
+            "multiqc_config.yaml"
         output:
             "multiqc/multiqc_report.html"
         params:
@@ -173,8 +200,8 @@ if config['multiqc']['do']:
             **config["multiqc"]["resources"]
         container:
             config['apptainers']['multiqc']
-        wrapper:
-           f"{manager.wrappers}/wrappers/multiqc"
+        shell:
+            manager.get_shell("multiqc/run", "v1")
 
 
 # ====================================================================== rulegraph
@@ -186,8 +213,8 @@ rule rulegraph:
     params:
         mapper = {"multiqc": "../multiqc/multiqc_report.html"} if config['multiqc']['do'] else {},
         configname = "config.yaml"
-    wrapper:
-        f"{manager.wrappers}/wrappers/rulegraph"
+    run:
+        manager.get_run("rulegraph/run", "v1")(input, output, params)
 
 
 rule dot2svg:
@@ -198,14 +225,14 @@ rule dot2svg:
     container:
         config['apptainers']['graphviz']
     shell:
-        """dot -Tsvg {input} -o {output}"""
+        manager.get_shell("graphviz/dot2svg", "v1")
 
 
 rule plotting_and_stats:
-    input: expand("samples/{sample}/" + f"{METHOD}.log", sample=manager.samples)
+    input: __multiqc__input
     output: "outputs/summary.png", "outputs/summary.json"
     resources:
-        **config["multiqc"]["resources"]
+        **config["plotting_and_stats"]["resources"]
     run:
         import glob
         from sequana.fastqc import FastQC
@@ -216,14 +243,15 @@ rule plotting_and_stats:
         summary.pipeline_version = version
 
         f = FastQC()
-        max_sequences = 0
         for sample in manager.samples:
             if METHOD == "fastqc":
                 filenames = glob.glob("samples/{}/*zip".format(sample))
             else:
                 filenames = glob.glob("samples/{}/fastqc_*txt".format(sample))
             filenames = sorted(filenames)
-            assert len(filenames) in [0, 1,2]
+            if len(filenames) not in [0, 1, 2]:
+                raise ValueError(
+                    f"Unexpected number of FastQC output files for sample '{sample}': {filenames}")
             if len(filenames) != 0:
                 f.read_sample(filenames[0], sample)
                 summary.data[sample] = f.fastqc_data[sample]['basic_statistics']
@@ -236,11 +264,6 @@ rule plotting_and_stats:
                     'Sequences flagged as poor quality': 0.0,
                     'Sequence length': '0', '%GC': 0, 'total_deduplicated_percentage': 0,
                     'mean_quality': 0, 'avg_sequence_length': 0}
-            max_sequences = max(max_sequences, summary.data[sample]['Total Sequences'])
-
-        if max_sequences < 1000000 and max_sequences != 0:
-            shell('echo "read_count_multiplier: 1" >> multiqc_config.yaml ')
-            shell('echo "read_count_prefix: ' '" >> multiqc_config.yaml ')
         summary.to_json(output[1])
 
         f.plot_sequence_quality()
@@ -251,7 +274,7 @@ rule plotting_and_stats:
 
 
 # Those rules takes a couple of seconds so no need for a cluster
-localrules: rulegraph
+localrules: rulegraph, dot2svg, md5sum, plotting_and_stats
 
 
 onsuccess:
@@ -275,7 +298,8 @@ onsuccess:
     # Now, the main HTML report
 
     # Summary table with links towards fastqc
-    data = json.load(open("outputs/summary.json", "r"))
+    with open("outputs/summary.json", "r") as fh:
+        data = json.load(fh)
     df = pd.DataFrame(data['data'])
     df = df.T
     df.drop(['File type', "Encoding", "Sequences flagged as poor quality"],
@@ -287,17 +311,17 @@ onsuccess:
     df = df.reset_index()
     df = df.rename({
             "index": "sample",
-            "total_deduplicated_percentage": "duplicated (%)"}, axis=1)
+            "total_deduplicated_percentage": "unique (%)"}, axis=1)
 
     # print the dataframe in the HTML page
     #
     if METHOD == 'fastqc':
         # note that in the replacement, fastq.gz should be treated before .fastq
-        # case, otherwise a file names A.fastq.gz ends up in A.gz
-        df['link'] = ["samples/{}/{}_fastqc.html".format(sample, filename.replace(".fastq.gz","").replace(".fastq", "").replace(".fq.gz","").replace(".fq","")) 
-            for sample,filename in zip(df['sample'], df['Filename'])]
+        # case, otherwise a file named A.fastq.gz ends up in A.gz
+        df['link'] = [f"samples/{sample}/{filename.replace('.fastq.gz', '').replace('.fastq', '').replace('.fq.gz', '').replace('.fq', '')}_fastqc.html"
+            for sample, filename in zip(df['sample'], df['Filename'])]
     elif METHOD == 'falco':
-        df['link'] = ["samples/{}/fastqc_report.html".format(sample, sample) for sample in df['sample']]
+        df['link'] = [f"samples/{sample}/fastqc_report.html" for sample in df['sample']]
     datatable = DataTable(df, 'fastqc', index=False)
     datatable.datatable.datatable_options = {'paging': 'false',
                                               'buttons': ['copy', 'csv'],
@@ -334,9 +358,10 @@ onsuccess:
     image = SequanaReport.png_to_embedded_png("dummy", "outputs/summary.png", 
                 style="width:80%; height:40%")
 
+    image_link = "./multiqc/multiqc_report.html" if config['multiqc']['do'] else "outputs/summary.png"
     contents += f"""<div style="float:right; width:65%">
-         The following image shows the overall quality of your input files. <br>
-         <a href="./multiqc/multiqc_report.html">{image}</a></div>
+         The following image shows the overall quality of your input files (click on it to jump to a more detailed report). <br>
+         <a href="{image_link}">{image}</a></div>
         <div style="clear:both"></div>"""
 
     if config['multiqc']['do']:

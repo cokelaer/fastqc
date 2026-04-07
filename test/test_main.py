@@ -14,7 +14,6 @@ from . import test_dir
 sharedir = f"{test_dir}/data"
 
 
-# 
 def test_standalone_subprocess():
     directory = tempfile.TemporaryDirectory()
     cmd = "sequana_fastqc --input-directory {} "
@@ -32,7 +31,6 @@ def test_standalone_script():
     assert results.exit_code == 0
 
 
-
 def test_full_fastqc():
 
     with tempfile.TemporaryDirectory() as directory:
@@ -43,30 +41,12 @@ def test_full_fastqc():
         cmd = cmd.format(sharedir, wk)
         subprocess.call(cmd.split())
 
-
-        cmd = "snakemake -s fastqc.rules --wrapper-prefix https://raw.githubusercontent.com/sequana/sequana-wrappers/  -p --cores 2 "
-
+        cmd = "snakemake -s fastqc.rules -p --cores 2"
         stat = subprocess.call(cmd.split(), cwd=wk)
 
         assert os.path.exists(wk + "/summary.html")
         assert os.path.exists(wk + "/tree.html")
         assert os.path.exists(wk + "/multiqc/multiqc_report.html")
-
-
-def test_version():
-    cmd = "sequana_fastqc --version"
-    subprocess.call(cmd.split())
-
-
-def test_help():
-    cmd = "sequana_fastqc --help"
-    subprocess.call(cmd.split())
-
-
-def test_help_click():
-    runner = CliRunner()
-    results = runner.invoke(main, ["--help"])
-    assert results.exit_code == 0
 
 
 def test_full_falco():
@@ -79,12 +59,19 @@ def test_full_falco():
         cmd = cmd.format(sharedir, wk)
         subprocess.call(cmd.split())
 
-
-        cmd = "snakemake -s fastqc.rules --wrapper-prefix https://raw.githubusercontent.com/sequana/sequana-wrappers/  -p --cores 2 "
-
+        cmd = "snakemake -s fastqc.rules -p --cores 2"
         stat = subprocess.call(cmd.split(), cwd=wk)
 
         assert os.path.exists(wk + "/summary.html")
         assert os.path.exists(wk + "/tree.html")
         assert os.path.exists(wk + "/multiqc/multiqc_report.html")
 
+
+def test_help_click():
+    runner = CliRunner()
+
+    results = runner.invoke(main, ["--help"])
+    assert results.exit_code == 0
+
+    results = runner.invoke(main, ["--version"])
+    assert results.exit_code == 0

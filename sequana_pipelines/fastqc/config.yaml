@@ -7,8 +7,6 @@
 # use it, otherwise use input_samples.
 # ============================================================================
 
-sequana_wrappers: "v23.11.18"
-
 input_directory: '.'
 input_pattern: '*fastq.gz'
 exclude_pattern:
@@ -24,7 +22,7 @@ apptainers:
     falco: "https://zenodo.org/record/7014954/files/falco_1.0.0.img"
     fastqc: "https://zenodo.org/record/7923780/files/fastqc_0.12.1.img"
     graphviz: "https://zenodo.org/record/7928262/files/graphviz_7.0.5.img"
-    multiqc: https://zenodo.org/record/10155626/files/multiqc_1.17.0.img
+    multiqc: "https://zenodo.org/record/10155626/files/multiqc_1.17.0.img"
 
 
 ##############################################################################
@@ -54,7 +52,7 @@ fastqc:
 #
 # :Parameters:
 #
-# - options: string with any valid FastQC options
+# - options: string with any valid Falco options
 falco:
     options: ''
     threads: 4
