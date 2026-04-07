@@ -317,11 +317,11 @@ onsuccess:
     #
     if METHOD == 'fastqc':
         # note that in the replacement, fastq.gz should be treated before .fastq
-        # case, otherwise a file names A.fastq.gz ends up in A.gz
-        df['link'] = ["samples/{}/{}_fastqc.html".format(sample, filename.replace(".fastq.gz","").replace(".fastq", "").replace(".fq.gz","").replace(".fq","")) 
-            for sample,filename in zip(df['sample'], df['Filename'])]
+        # case, otherwise a file named A.fastq.gz ends up in A.gz
+        df['link'] = [f"samples/{sample}/{filename.replace('.fastq.gz', '').replace('.fastq', '').replace('.fq.gz', '').replace('.fq', '')}_fastqc.html"
+            for sample, filename in zip(df['sample'], df['Filename'])]
     elif METHOD == 'falco':
-        df['link'] = ["samples/{}/fastqc_report.html".format(sample, sample) for sample in df['sample']]
+        df['link'] = [f"samples/{sample}/fastqc_report.html" for sample in df['sample']]
     datatable = DataTable(df, 'fastqc', index=False)
     datatable.datatable.datatable_options = {'paging': 'false',
                                               'buttons': ['copy', 'csv'],

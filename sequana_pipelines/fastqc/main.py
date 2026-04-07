@@ -68,7 +68,7 @@ def main(**options):
     cfg.input_pattern = options.input_pattern
 
     cfg.input_directory = os.path.abspath(options.input_directory)
-    cfg.multiqc.do = not options.skip_multiqc
+    cfg.multiqc.do = not options.skip_multiqc  # noqa: SIM208
     cfg.general.method_choice = options.method
 
     manager.exists(cfg.input_directory)
